@@ -1,0 +1,52 @@
+@startuml
+!include <C4/C4_Container>
+
+!$LEGEND_TITLE_TEXT = "Легенда"
+UpdateElementStyle("person", $legendText="человек")
+UpdateElementStyle("container", $legendText="контейнер")
+UpdateElementStyle("external_system", $legendText="внешняя система")
+UpdateBoundaryStyle("system", $legendText="граница системы")
+
+title Где заказ может сломаться или зависнуть (оранжевым — что покрываем трейсингом)
+
+AddElementTag("trace", $bgColor="#f28e2b", $borderColor="#b35c00", $legendText="покрываем трейсингом")
+AddRelTag("risk", $textColor="#b35c00", $lineColor="#f28e2b", $legendText="точка, где заказ может сломаться [N]")
+
+Person(customer, "Покупатель")
+Person(seller, "Продавец")
+Person(apiUser, "Пользователь API")
+Person(operator, "Оператор")
+
+System_Boundary(sys, "Jewerly Store System") {
+  Container(shop, "Internet Shop", "Vue, TypeScript, Three.js")
+  Container(shopApi, "Shop API", "Spring Boot", $tags="trace")
+  ContainerDb(shopDb, "Shop DB", "PostgreSQL")
+  Container(crm, "CRM", "Vue, TypeScript")
+  Container(crmApi, "CRM API", "Spring Boot", $tags="trace")
+  ContainerQueue(mq, "Messages Queue", "RabbitMQ", $tags="trace")
+  ContainerDb(s3, "3d files storage", "S3")
+  Container(mes, "MES", "React, TypeScript")
+  Container(mesApi, "MES API", "C#", "Расчёт стоимости, заказы операторов", $tags="trace")
+  ContainerDb(mesDb, "MES db", "PostgreSQL")
+}
+
+Rel(customer, shop, "")
+Rel(shop, shopApi, "")
+Rel(shopApi, shopDb, "[1] сохранение заказа", $tags="risk")
+Rel(shopApi, s3, "[1] загрузка 3D-файла", $tags="risk")
+Rel(seller, crm, "")
+Rel(crm, crmApi, "")
+Rel(crmApi, shopDb, "[2] CRM не забрал заказ", $tags="risk")
+Rel(crmApi, s3, "")
+Rel(crmApi, mq, "[3] новый заказ, подтверждение", $tags="risk")
+Rel(mq, mesApi, "[3]", $tags="risk")
+Rel(mesApi, mq, "[5] статусы, заказ партнёра", $tags="risk")
+Rel(mq, crmApi, "[5]", $tags="risk")
+Rel(apiUser, mesApi, "[4] расчёт стоимости", $tags="risk")
+Rel(operator, mes, "")
+Rel(mes, mesApi, "[6] дашборд заказов", $tags="risk")
+Rel(mesApi, s3, "[4] чтение 3D-файла", $tags="risk")
+Rel(mesApi, mesDb, "")
+
+SHOW_LEGEND()
+@enduml
