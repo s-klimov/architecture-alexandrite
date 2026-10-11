@@ -1,0 +1,76 @@
+@startuml
+!include <C4/C4_Container>
+
+!$LEGEND_TITLE_TEXT = "Легенда"
+UpdateElementStyle("person", $legendText="человек")
+UpdateElementStyle("container", $legendText="контейнер")
+UpdateElementStyle("external_system", $legendText="внешняя система")
+UpdateBoundaryStyle("system", $legendText="граница системы")
+
+title Мониторинг прохождения заказа и алертинг по данным трейсинга (зелёным)
+
+AddElementTag("new", $bgColor="#d62728", $borderColor="#8b0000", $legendText="новый компонент")
+AddElementTag("changed", $bgColor="#438DD5", $borderColor="#d62728", $borderThickness="4", $legendText="доработка: OpenTelemetry")
+AddElementTag("alert", $bgColor="#2ca02c", $borderColor="#1a6b1a", $legendText="мониторинг и алертинг")
+AddRelTag("alert", $textColor="#2ca02c", $lineColor="#2ca02c", $legendText="связь для алертинга")
+AddRelTag("new", $textColor="#d62728", $lineColor="#d62728", $legendText="новая или изменённая связь")
+
+Person(customer, "Покупатель")
+Person(seller, "Продавец")
+Person(apiUser, "Пользователь API")
+Person(operator, "Оператор")
+Person(support, "Поддержка и разработчики", $tags="new")
+Person(onCall, "Дежурный инженер", $tags="alert")
+System_Ext(messenger, "Telegram / e-mail", "Канал уведомлений", $tags="alert")
+
+System_Boundary(sys, "Jewerly Store System") {
+  Container(shop, "Internet Shop", "Vue, TypeScript, Three.js")
+  Container(shopApi, "Shop API", "Spring Boot", "+ OpenTelemetry Java agent", $tags="changed")
+  ContainerDb(shopDb, "Shop DB", "PostgreSQL")
+  Container(crm, "CRM", "Vue, TypeScript")
+  Container(crmApi, "CRM API", "Spring Boot", "+ OpenTelemetry Java agent", $tags="changed")
+  ContainerQueue(mq, "Messages Queue", "RabbitMQ")
+  ContainerDb(s3, "3d files storage", "S3")
+  Container(mes, "MES", "React, TypeScript")
+  Container(mesApi, "MES API", "C#", "+ OpenTelemetry .NET SDK", $tags="changed")
+  ContainerDb(mesDb, "MES db", "PostgreSQL")
+
+  Container(jaeger, "Jaeger", "Jaeger", "Принимает и хранит трейсы, поиск по order.id", $tags="new")
+  ContainerDb(traceStorage, "Trace storage", "OpenSearch", "Трейсы за 30 дней", $tags="new")
+  ContainerDb(prometheus, "Prometheus", "Prometheus", "Метрики из задания 2 + метрики OpenTelemetry", $tags="alert")
+  Container(grafana, "Grafana", "Grafana", "Просмотр трейсов заказа. Дашборд прохождения заказов и правила алертов", $tags="new")
+}
+
+Rel(customer, shop, "")
+Rel(shop, shopApi, "")
+Rel(shopApi, shopDb, "")
+Rel(shopApi, s3, "")
+Rel(seller, crm, "")
+Rel(crm, crmApi, "")
+Rel(crmApi, shopDb, "")
+Rel(crmApi, s3, "")
+Rel(crmApi, mq, "сообщения + traceparent в заголовках", $tags="new")
+Rel(mesApi, mq, "сообщения + traceparent в заголовках", $tags="new")
+Rel(apiUser, mesApi, "")
+Rel(operator, mes, "")
+Rel(mes, mesApi, "")
+Rel(mesApi, s3, "")
+Rel(mesApi, mesDb, "")
+
+Rel(shopApi, jaeger, "спаны", "OTLP", $tags="new")
+Rel(crmApi, jaeger, "спаны", "OTLP", $tags="new")
+Rel(mesApi, jaeger, "спаны", "OTLP", $tags="new")
+Rel(jaeger, traceStorage, "сохраняет трейсы", $tags="new")
+Rel(grafana, jaeger, "поиск трейсов", "Jaeger API", $tags="new")
+Rel(support, grafana, "ищет заказ по order.id", "HTTPS, SSO", $tags="new")
+
+Rel(shopApi, prometheus, "метрики OpenTelemetry", $tags="alert")
+Rel(crmApi, prometheus, "метрики OpenTelemetry", $tags="alert")
+Rel(mesApi, prometheus, "метрики OpenTelemetry", $tags="alert")
+Rel(grafana, prometheus, "запросы метрик, проверка правил", "PromQL", $tags="alert")
+Rel(grafana, messenger, "алерты со ссылкой на дашборд", $tags="alert")
+Rel(messenger, onCall, "уведомление", $tags="alert")
+Rel(onCall, grafana, "открывает дашборд и трейс", $tags="alert")
+
+SHOW_LEGEND()
+@enduml

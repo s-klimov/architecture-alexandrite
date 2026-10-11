@@ -1,0 +1,68 @@
+@startuml
+!include <C4/C4_Container>
+
+!$LEGEND_TITLE_TEXT = "Легенда"
+UpdateElementStyle("person", $legendText="человек")
+UpdateElementStyle("container", $legendText="контейнер")
+UpdateElementStyle("external_system", $legendText="внешняя система")
+UpdateBoundaryStyle("system", $legendText="граница системы")
+
+title Логирование: новые компоненты и связи (красным)
+
+AddElementTag("new", $bgColor="#d62728", $borderColor="#8b0000", $legendText="новый компонент")
+AddElementTag("changed", $bgColor="#438DD5", $borderColor="#d62728", $borderThickness="4", $legendText="доработка: JSON-логи")
+AddRelTag("new", $textColor="#d62728", $lineColor="#d62728", $legendText="новая связь")
+
+Person(customer, "Покупатель")
+Person(seller, "Продавец")
+Person(apiUser, "Пользователь API")
+Person(operator, "Оператор")
+Person(support, "Поддержка и разработчики", $tags="new")
+Person(onCall, "Дежурный инженер", $tags="new")
+System_Ext(messenger, "Telegram / e-mail", "Канал уведомлений")
+
+System_Boundary(sys, "Jewerly Store System") {
+  Container(shop, "Internet Shop", "Vue, TypeScript, Three.js")
+  Container(shopApi, "Shop API", "Spring Boot", "+ JSON-логи (Logback) с trace_id", $tags="changed")
+  ContainerDb(shopDb, "Shop DB", "PostgreSQL")
+  Container(crm, "CRM", "Vue, TypeScript")
+  Container(crmApi, "CRM API", "Spring Boot", "+ JSON-логи (Logback) с trace_id", $tags="changed")
+  ContainerQueue(mq, "Messages Queue", "RabbitMQ")
+  ContainerDb(s3, "3d files storage", "S3")
+  Container(mes, "MES", "React, TypeScript")
+  Container(mesApi, "MES API", "C#", "+ JSON-логи (Serilog) с trace_id", $tags="changed")
+  ContainerDb(mesDb, "MES db", "PostgreSQL")
+
+  Container(agent, "Log agent", "Fluent Bit", "На каждом инстансе: читает логи, маскирует данные, отправляет", $tags="new")
+  ContainerDb(logStorage, "Log storage", "Managed OpenSearch", "Отдельный индекс на систему, Alerting и Anomaly Detection", $tags="new")
+  Container(dashboards, "OpenSearch Dashboards", "OpenSearch Dashboards", "Поиск по логам, дашборды ошибок", $tags="new")
+}
+
+Rel(customer, shop, "")
+Rel(shop, shopApi, "")
+Rel(shopApi, shopDb, "")
+Rel(shopApi, s3, "")
+Rel(seller, crm, "")
+Rel(crm, crmApi, "")
+Rel(crmApi, shopDb, "")
+Rel(crmApi, s3, "")
+Rel(crmApi, mq, "")
+Rel(mesApi, mq, "")
+Rel(apiUser, mesApi, "")
+Rel(operator, mes, "")
+Rel(mes, mesApi, "")
+Rel(mesApi, s3, "")
+Rel(mesApi, mesDb, "")
+
+Rel(shopApi, agent, "файлы логов", $tags="new")
+Rel(crmApi, agent, "файлы логов", $tags="new")
+Rel(mesApi, agent, "файлы логов", $tags="new")
+Rel(mq, agent, "логи брокера", $tags="new")
+Rel(agent, logStorage, "логи", "HTTPS", $tags="new")
+Rel(dashboards, logStorage, "поиск", $tags="new")
+Rel(support, dashboards, "ищет по order_id и trace_id", "HTTPS, SSO", $tags="new")
+Rel(logStorage, messenger, "алерты и аномалии", $tags="new")
+Rel(messenger, onCall, "уведомление", $tags="new")
+
+SHOW_LEGEND()
+@enduml
