@@ -1,0 +1,49 @@
+@startuml
+!include <C4/C4_Container>
+
+!$LEGEND_TITLE_TEXT = "Легенда"
+UpdateElementStyle("person", $legendText="человек")
+UpdateElementStyle("container", $legendText="контейнер")
+UpdateElementStyle("external_system", $legendText="внешняя система")
+UpdateBoundaryStyle("system", $legendText="граница системы")
+
+title Из каких систем собираем логи (оранжевым)
+
+AddElementTag("logs", $bgColor="#f28e2b", $borderColor="#b35c00", $legendText="собираем логи")
+
+Person(customer, "Покупатель")
+Person(seller, "Продавец")
+Person(apiUser, "Пользователь API")
+Person(operator, "Оператор")
+
+System_Boundary(sys, "Jewerly Store System") {
+  Container(shop, "Internet Shop", "Vue, TypeScript, Three.js")
+  Container(shopApi, "Shop API", "Spring Boot", "Заказы B2C, загрузка 3D-файлов", $tags="logs")
+  ContainerDb(shopDb, "Shop DB", "PostgreSQL")
+  Container(crm, "CRM", "Vue, TypeScript")
+  Container(crmApi, "CRM API", "Spring Boot", "Подтверждение заказов, заказы партнёров", $tags="logs")
+  ContainerQueue(mq, "Messages Queue", "RabbitMQ", "Логи брокера: соединения, очереди", $tags="logs")
+  ContainerDb(s3, "3d files storage", "S3")
+  Container(mes, "MES", "React, TypeScript")
+  Container(mesApi, "MES API", "C#", "Расчёт стоимости, API партнёров, дашборд", $tags="logs")
+  ContainerDb(mesDb, "MES db", "PostgreSQL")
+}
+
+Rel(customer, shop, "")
+Rel(shop, shopApi, "")
+Rel(shopApi, shopDb, "")
+Rel(shopApi, s3, "")
+Rel(seller, crm, "")
+Rel(crm, crmApi, "")
+Rel(crmApi, shopDb, "")
+Rel(crmApi, s3, "")
+Rel(crmApi, mq, "")
+Rel(mesApi, mq, "")
+Rel(apiUser, mesApi, "")
+Rel(operator, mes, "")
+Rel(mes, mesApi, "")
+Rel(mesApi, s3, "")
+Rel(mesApi, mesDb, "")
+
+SHOW_LEGEND()
+@enduml
